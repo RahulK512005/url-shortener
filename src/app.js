@@ -3,7 +3,7 @@ const express = require("express");
 const morgan = require("morgan");
 const connectDB = require("./config/db");
 const urlRoutes = require("./routes/urlRoutes");
-const { createShortUrl } = require("./services/shortenerService");
+const { createShortUrl, getAnalytics } = require("./services/shortenerService");
 
 const app = express();
 
@@ -11,13 +11,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+function isValidUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch (_error) {
+    return false;
+  }
 }
 
 app.get("/", (_req, res) => {
@@ -38,6 +38,9 @@ app.get("/shorten", async (req, res, next) => {
     if (!url) {
       return res.status(400).send("<p>URL is required.</p><a href='/'>Go back</a>");
     }
+    if (!isValidUrl(url)) {
+      return res.status(400).send("<p>Please enter a valid URL.</p><a href='/'>Go back</a>");
+    }
 
     const created = await createShortUrl(url);
     const baseUrl =
@@ -46,12 +49,30 @@ app.get("/shorten", async (req, res, next) => {
       `${req.protocol}://${req.get("host")}`;
     const shortUrl = `${baseUrl}/${created.shortCode}`;
 
-    return res.send(`
-      <h3>Short URL Created</h3>
-      <p>Original URL: ${escapeHtml(created.originalUrl)}</p>
-      <a href="${shortUrl}">${shortUrl}</a>
-      <p style="margin-top: 16px;"><a href="/">Create another</a></p>
-    `);
+    return res.json({
+      shortUrl,
+      shortCode: created.shortCode,
+      originalUrl: created.originalUrl,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get("/analytics/:code", async (req, res, next) => {
+  try {
+    const url = await getAnalytics(req.params.code);
+    if (!url) {
+      return res.status(404).json({ message: "URL not found" });
+    }
+
+    return res.json({
+      originalUrl: url.originalUrl,
+      clicks: url.clicks,
+      createdAt: url.createdAt,
+      expiresAt: url.expiresAt,
+      lastAccessedAt: url.lastAccessedAt,
+    });
   } catch (error) {
     return next(error);
   }
