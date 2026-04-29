@@ -13,7 +13,10 @@ exports.createShortUrl = async (req, res, next) => {
     }
 
     const created = await createShortUrl(url, expiryDays);
-    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const baseUrl =
+      process.env.BASE_URL ||
+      process.env.RENDER_EXTERNAL_URL ||
+      `http://localhost:${process.env.PORT || 5000}`;
 
     return res.status(201).json({
       shortUrl: `${baseUrl}/${created.shortCode}`,

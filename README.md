@@ -108,6 +108,70 @@ const urlSchema = new mongoose.Schema({
    http://localhost:5000
    ```
 
+## Deploy on Render
+
+### 1) Push code to GitHub
+
+Render deploys from a Git repository, so push this project to GitHub first.
+
+### 2) Create MongoDB Atlas database
+
+1. Create a free cluster in MongoDB Atlas.
+2. Create a database user.
+3. Allow network access from `0.0.0.0/0` (or Render egress range if restricted).
+4. Copy your connection string and replace `<password>`.
+
+Example:
+
+```text
+mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/url_shortener?retryWrites=true&w=majority
+```
+
+### 3) Deploy in Render
+
+1. Go to [Render Dashboard](https://dashboard.render.com/).
+2. Click **New +** -> **Web Service**.
+3. Connect your GitHub repo and select this project.
+4. Render auto-detects `render.yaml` from repo root.
+5. Set required environment variables in Render:
+   - `MONGO_URI` = your Atlas URI
+   - `BASE_URL` = your Render app URL (for example `https://url-shortener.onrender.com`)
+6. Click **Create Web Service**.
+
+### 4) Verify deployment
+
+Once deployed, test:
+
+- Health:
+
+  ```text
+  https://<your-service>.onrender.com/health
+  ```
+
+- Shorten:
+
+  ```text
+  POST https://<your-service>.onrender.com/api/shorten
+  ```
+
+- Redirect:
+
+  ```text
+  GET https://<your-service>.onrender.com/<shortCode>
+  ```
+
+- Analytics:
+
+  ```text
+  GET https://<your-service>.onrender.com/api/analytics/<shortCode>
+  ```
+
+### 5) Common deployment notes
+
+- Keep local `.env` private (already ignored via `.gitignore`).
+- Use Atlas URI in production, not local MongoDB URI.
+- Free Render services may sleep; first request can be slow.
+
 ## PowerShell Testing Guide (Windows)
 
 PowerShell maps `curl` to `Invoke-WebRequest`, so Linux-style flags (`-X`, `-H`, `-d`) can fail. Use PowerShell-native commands below.
