@@ -108,11 +108,64 @@ const urlSchema = new mongoose.Schema({
    http://localhost:5000
    ```
 
+## PowerShell Testing Guide (Windows)
+
+PowerShell maps `curl` to `Invoke-WebRequest`, so Linux-style flags (`-X`, `-H`, `-d`) can fail. Use PowerShell-native commands below.
+
+1. Create a short URL:
+
+   ```powershell
+   $body = @{ url = "https://example.com" } | ConvertTo-Json
+   $created = Invoke-RestMethod -Method Post -Uri "http://localhost:5000/api/shorten" -ContentType "application/json" -Body $body
+   $created
+   ```
+
+2. Test redirect using generated short code:
+
+   ```powershell
+   Invoke-WebRequest -Uri "http://localhost:5000/$($created.shortCode)" -MaximumRedirection 0 -UseBasicParsing
+   ```
+
+   Expected status: `302 Found`
+
+3. Check analytics:
+
+   ```powershell
+   Invoke-RestMethod -Method Get -Uri "http://localhost:5000/api/analytics/$($created.shortCode)"
+   ```
+
+   Expected response includes:
+   - `shortCode`
+   - `originalUrl`
+   - `clicks` (increments after redirect calls)
+   - `createdAt`, `lastAccessedAt`, `expiresAt`
+
+### Optional: use real curl syntax in PowerShell
+
+Use `curl.exe` (not `curl`) if you want standard curl flags:
+
+```powershell
+curl.exe -X POST "http://localhost:5000/api/shorten" -H "Content-Type: application/json" -d "{\"url\":\"https://example.com\"}"
+```
+
 ## Example Workflow
 
 1. Create short URL via `POST /api/shorten`
 2. Open returned short URL in browser
 3. Fetch stats from `GET /api/analytics/:code`
+
+## Sample Verified Output
+
+The API has been validated with the following observed behavior:
+
+- URL creation returned a valid short link such as:
+  - `http://localhost:5000/QN2ECGIrayXGvjB6`
+- Redirect endpoint responded with:
+  - `302 Found`
+  - `Location: https://example.com`
+- Analytics endpoint returned click data, for example:
+  - `clicks: 1`
+  - `originalUrl: https://example.com`
 
 ## Resume Value
 
